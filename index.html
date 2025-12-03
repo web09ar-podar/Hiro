@@ -99,6 +99,13 @@
 
       let lostTimeout = null;
       let started = false;
+      let startTime = Date.now();
+setTimeout(() => {
+  if (Date.now() - startTime > 5000 && !started) {
+    statusText.innerHTML = "Камера недоступна. Проверьте разрешения.<br><button onclick='location.reload()'>Обновить</button>";
+    overlay.classList.remove('hidden');
+  }
+}, 5000);
 
       // 1. AR готов
       sceneEl.addEventListener('arReady', () => {
