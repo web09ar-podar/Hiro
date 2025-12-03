@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>ФОТО: AR - MindAR v2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Самые свежие и стабильные версии (декабрь 2025) -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@2.0.1/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+
+      #overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.95); z-index: 999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        color: white; text-align: center; transition: opacity 0.5s;
+      }
+      #overlay.hidden { opacity: 0; pointer-events: none; }
+
+      #status-text { font-size: 20px; margin-bottom: 20px; padding: 0 30px; line-height: 1.4; }
+      
+      #start-button {
+        padding: 16px 40px; font-size: 20px; background: #e4405f;
+        color: white; border: none; border-radius: 50px; cursor: pointer;
+        font-weight: bold; box-shadow: 0 6px 20px rgba(228,64,95,0.5);
+        transition: transform 0.2s;
+      }
+      #start-button:active { transform: scale(0.95); }
+
+      /* Подсказка снизу (без рамки сканирования) */
+      #hint {
+        position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+        color: rgba(255,255,255,0.85); font-size: 18px; z-index: 100;
+        opacity: 0; transition: opacity 0.6s;
+      }
+      #hint.visible { opacity: 1; }
+    </style>
+  </head>
+
+  <body>
+    <div id="overlay">
+      <div id="status-text">Загрузка AR-системы...</div>
+      <button id="start-button">НАЧАТЬ ПРОСМОТР</button>
+    </div>
+
+    <div id="hint">Наведите камеру на фотографию</div>
+
+    <a-scene
+      embedded
+      mindar-image="imageTargetSrc: ./tetra.mind;
+                     uiLoading: no; uiScanning: no; uiError: no;
+                     filterMinCF: 0.001; filterBeta: 120;
+                     warmupTolerance: 10; missTolerance: 15;
+                     maxTrack: 1"
+      renderer="antialias: false; colorManagement: true; physicallyCorrectLights: true"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+
+      <a-assets timeout="20000">
+        <video id="photo-video"
+               src="./tetrad.mp4"
+               preload="auto"
+               loop
+               muted
+               playsinline
+               webkit-playsinline
+               crossorigin="anonymous">
+        </video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-plane id="video-plane"
+                 src="#photo-video"
+                 width="1"
+                 height="1.3333"
+                 position=".Concurrent0 0 0.01"
+                 rotation="-90 0 0"
+                 material="shader: flat; transparent: true; opacity: 0"
+                 animation__fadein="property: material.opacity; from: 0; to: 1; dur: 450; startEvents: fadein; easing: easeOutCubic"
+                 animation__fadeout="property: material.opacity; from: 1; to: 0; dur: 400; startEvents: fadeout; easing: easeInQuad">
+        </a-plane>
+      </a-entity>
+
+    </a-scene>
+
+    <script>
+      const overlay      = document.getElementById('overlay');
+      const statusText   = document.getElementById('status-text');
+      const startButton  = document.getElementById('start-button');
+      const hint         = document.getElementById('hint');
+      const video        = document.getElementById('photo-video');
+      const videoPlane   = document.getElementById('video-plane');
+      const sceneEl      = document.querySelector('a-scene');
+
+      let lostTimeout = null;
+      let started = false;
+
+      // 1. AR готов
+      sceneEl.addEventListener('arReady', () => {
+        statusText.textContent = "Готово! Нажмите кнопку, чтобы начать";
+        startButton.style.display = 'block';
+      });
+
+      // 2. Ошибка доступа к камере
+      sceneEl.addEventListener('arError', () => {
+        statusText.innerHTML = "Нет доступа к камере.<br>Разрешите доступ и обновите страницу.";
+        startButton.textContent = "ПОПРОБОВАТЬ СНОВА";
+        startButton.style.display = 'block';
+      });
+
+      // 3. Старт по кнопке
+      startButton.addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        hint.classList.add('visible');
+        started = true;
+
+        // Предзагрузка видео (обязательно для iOS)
+        video.muted = true;
+        video.play().then(() => {
+          video.pause();
+          video.currentTime = 0;
+          video.muted = false; // звук теперь включится при targetFound
+        }).catch(e => console.warn("Предзагрузка видео:", e));
+      });
+
+      // 4. Цель найдена
+      videoPlane.addEventListener('targetFound', () => {
+        console.log("Фото найдено");
+        hint.classList.remove('visible');
+
+        if (lostTimeout) {
+          clearTimeout(lostTimeout);
+          lostTimeout = null;
+        }
+
+        videoPlane.emit('fadein');
+        if (video.paused) {
+          video.play().catch(e => console.warn("Ошибка запуска видео:", e));
+        }
+      });
+
+      // 5. Цель потеряна
+      videoPlane.addEventListener('targetLost', () => {
+        console.log("Фото потеряно – ждём...");
+        hint.classList.add('visible');
+
+        if (lostTimeout) clearTimeout(lostTimeout);
+
+        lostTimeout = setTimeout(() => {
+          console.log("Потеря подтверждена");
+          videoPlane.emit('fadeout');
+          setTimeout(() => video.pause(), 450); // после завершения fadeout
+        }, 700); // чуть больше missTolerance
+      });
+
+      // Ошибка загрузки видео
+      video.addEventListener('error', () => {
+        if (!started) {
+          statusText.innerHTML = "Не удалось загрузить видео.<br>Проверьте файл tetrad.mp4";
+          overlay.classList.remove('hidden');
+        }
+      });
+
+      // Очистка при уходе со страницы
+      window.addEventListener('pagehide', () => video.pause());
+    </script>
+  </body>
+</html>
