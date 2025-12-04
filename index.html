@@ -2,12 +2,12 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>ФОТО: AR - MindAR v2</title>
+    <title>ФОТО: AR - MindAR</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <!-- Самые свежие и стабильные версии (декабрь 2025) -->
+    <!-- Актуальные стабильные версии (декабрь 2025) -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@2.0.1/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
       body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
@@ -52,7 +52,7 @@
       embedded
       mindar-image="imageTargetSrc: ./tetra.mind;
                      uiLoading: no; uiScanning: no; uiError: no;
-                     filterMinCF: 0.001; filterBeta: 120;
+                     filterMinCF: 0.001; filterBeta: 100;
                      warmupTolerance: 10; missTolerance: 15;
                      maxTrack: 1"
       renderer="antialias: false; colorManagement: true; physicallyCorrectLights: true"
@@ -73,13 +73,13 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0">
+      <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
         <a-plane id="video-plane"
                  src="#photo-video"
                  width="1"
                  height="1.3333"
-                 position=".Concurrent0 0 0.01"
-                 rotation="-90 0 0"
+                 position="0 0 0.01"
+                 rotation="0 0 0"
                  material="shader: flat; transparent: true; opacity: 0"
                  animation__fadein="property: material.opacity; from: 0; to: 1; dur: 450; startEvents: fadein; easing: easeOutCubic"
                  animation__fadeout="property: material.opacity; from: 1; to: 0; dur: 400; startEvents: fadeout; easing: easeInQuad">
@@ -95,20 +95,25 @@
       const hint         = document.getElementById('hint');
       const video        = document.getElementById('photo-video');
       const videoPlane   = document.getElementById('video-plane');
+      const targetEntity = document.getElementById('target-entity');
       const sceneEl      = document.querySelector('a-scene');
 
       let lostTimeout = null;
       let started = false;
-      let startTime = Date.now();
-setTimeout(() => {
-  if (Date.now() - startTime > 5000 && !started) {
-    statusText.innerHTML = "Камера недоступна. Проверьте разрешения.<br><button onclick='location.reload()'>Обновить</button>";
-    overlay.classList.remove('hidden');
-  }
-}, 5000);
+      let arReadyReceived = false;
+
+      // Таймаут на проверку запуска камеры (если не запустится за 5.5 сек)
+      const startTime = Date.now();
+      setTimeout(() => {
+        if (!arReadyReceived && started) {
+          statusText.innerHTML = "Камера не запустилась.<br>Проверьте разрешения и обновите страницу.<br><button style='margin-top:15px;padding:12px 30px;font-size:18px;background:#e4405f;color:white;border:none;border-radius:50px;cursor:pointer' onclick='location.reload()'>ОБНОВИТЬ СТРАНИЦУ</button>";
+          overlay.classList.remove('hidden');
+        }
+      }, 5500);
 
       // 1. AR готов
       sceneEl.addEventListener('arReady', () => {
+        arReadyReceived = true;
         statusText.textContent = "Готово! Нажмите кнопку, чтобы начать";
         startButton.style.display = 'block';
       });
@@ -136,7 +141,7 @@ setTimeout(() => {
       });
 
       // 4. Цель найдена
-      videoPlane.addEventListener('targetFound', () => {
+      targetEntity.addEventListener('targetFound', () => {
         console.log("Фото найдено");
         hint.classList.remove('visible');
 
@@ -152,7 +157,7 @@ setTimeout(() => {
       });
 
       // 5. Цель потеряна
-      videoPlane.addEventListener('targetLost', () => {
+      targetEntity.addEventListener('targetLost', () => {
         console.log("Фото потеряно – ждём...");
         hint.classList.add('visible');
 
