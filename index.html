@@ -2,15 +2,35 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>ФОТО: AR - MindAR</title>
+    <title>ФОТО: AR - MindAR v1.2.5 (Исправлено)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <!-- Актуальные стабильные версии (декабрь 2025) -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+      /* КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ДЛЯ ПОЛНОЭКРАННОГО РЕЖИМА */
+      html, body { 
+        width: 100%;
+        height: 100%;
+      }
+
+      body { 
+        margin: 0; 
+        overflow: hidden; 
+        background: #000; 
+        font-family: Arial, sans-serif; 
+      }
+      
+      /* Добавляем стили для A-Scene, чтобы убедиться, что она занимает весь экран */
+      a-scene {
+        position: absolute; 
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      /* КОНЕЦ КРИТИЧЕСКИХ ИСПРАВЛЕНИЙ */
 
       #overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -30,11 +50,11 @@
       }
       #start-button:active { transform: scale(0.95); }
 
-      /* Подсказка снизу (без рамки сканирования) */
+      /* Подсказка снизу */
       #hint {
         position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
         color: rgba(255,255,255,0.85); font-size: 18px; z-index: 100;
-        opacity: 0; transition: opacity 0.6s;
+        opacity: 0; transition: opacity 0.6s; pointer-events: none; /* Чтобы не мешал кнопкам */
       }
       #hint.visible { opacity: 1; }
     </style>
@@ -43,7 +63,7 @@
   <body>
     <div id="overlay">
       <div id="status-text">Загрузка AR-системы...</div>
-      <button id="start-button">НАЧАТЬ ПРОСМОТР</button>
+      <button id="start-button" style="display:none;">НАЧАТЬ ПРОСМОТР</button>
     </div>
 
     <div id="hint">Наведите камеру на фотографию</div>
@@ -79,8 +99,7 @@
                  width="1"
                  height="1.3333"
                  position="0 0 0.01"
-                 rotation="0 0 0"
-                 material="shader: flat; transparent: true; opacity: 0"
+                 rotation="0 0 0" material="shader: flat; transparent: true; opacity: 0"
                  animation__fadein="property: material.opacity; from: 0; to: 1; dur: 450; startEvents: fadein; easing: easeOutCubic"
                  animation__fadeout="property: material.opacity; from: 1; to: 0; dur: 400; startEvents: fadeout; easing: easeInQuad">
         </a-plane>
@@ -102,12 +121,14 @@
       let started = false;
       let arReadyReceived = false;
 
-      // Таймаут на проверку запуска камеры (если не запустится за 5.5 сек)
-      const startTime = Date.now();
+      // Таймаут на случай, если arReady не приходит
       setTimeout(() => {
         if (!arReadyReceived && started) {
-          statusText.innerHTML = "Камера не запустилась.<br>Проверьте разрешения и обновите страницу.<br><button style='margin-top:15px;padding:12px 30px;font-size:18px;background:#e4405f;color:white;border:none;border-radius:50px;cursor:pointer' onclick='location.reload()'>ОБНОВИТЬ СТРАНИЦУ</button>";
+          statusText.innerHTML = "Камера не запустилась.<br>Проверьте разрешения и обновите страницу.";
           overlay.classList.remove('hidden');
+          startButton.style.display = 'block';
+          startButton.textContent = "ОБНОВИТЬ СТРАНИЦУ";
+          startButton.onclick = () => location.reload();
         }
       }, 5500);
 
@@ -116,6 +137,8 @@
         arReadyReceived = true;
         statusText.textContent = "Готово! Нажмите кнопку, чтобы начать";
         startButton.style.display = 'block';
+        startButton.textContent = "НАЧАТЬ ПРОСМОТР";
+        startButton.onclick = null; // Сброс обработчика обновления страницы
       });
 
       // 2. Ошибка доступа к камере
@@ -123,24 +146,27 @@
         statusText.innerHTML = "Нет доступа к камере.<br>Разрешите доступ и обновите страницу.";
         startButton.textContent = "ПОПРОБОВАТЬ СНОВА";
         startButton.style.display = 'block';
+        startButton.onclick = () => location.reload();
       });
 
       // 3. Старт по кнопке
       startButton.addEventListener('click', () => {
-        overlay.classList.add('hidden');
-        hint.classList.add('visible');
-        started = true;
+        if (!started) { // Проверяем, чтобы код запускался только один раз
+            overlay.classList.add('hidden');
+            hint.classList.add('visible');
+            started = true;
 
-        // Предзагрузка видео (обязательно для iOS)
-        video.muted = true;
-        video.play().then(() => {
-          video.pause();
-          video.currentTime = 0;
-          video.muted = false; // звук теперь включится при targetFound
-        }).catch(e => console.warn("Предзагрузка видео:", e));
+            // Предзагрузка видео (критически важна для мобильных)
+            video.muted = true;
+            video.play().then(() => {
+              video.pause();
+              video.currentTime = 0;
+              video.muted = false; // звук теперь включится при targetFound
+            }).catch(e => console.warn("Предзагрузка видео:", e));
+        }
       });
 
-      // 4. Цель найдена
+      // 4. Цель найдена (Слушаем на targetEntity!)
       targetEntity.addEventListener('targetFound', () => {
         console.log("Фото найдено");
         hint.classList.remove('visible');
@@ -156,7 +182,7 @@
         }
       });
 
-      // 5. Цель потеряна
+      // 5. Цель потеряна (Слушаем на targetEntity!)
       targetEntity.addEventListener('targetLost', () => {
         console.log("Фото потеряно – ждём...");
         hint.classList.add('visible');
@@ -166,8 +192,8 @@
         lostTimeout = setTimeout(() => {
           console.log("Потеря подтверждена");
           videoPlane.emit('fadeout');
-          setTimeout(() => video.pause(), 450); // после завершения fadeout
-        }, 700); // чуть больше missTolerance
+          setTimeout(() => video.pause(), 450); 
+        }, 700); 
       });
 
       // Ошибка загрузки видео
@@ -175,6 +201,7 @@
         if (!started) {
           statusText.innerHTML = "Не удалось загрузить видео.<br>Проверьте файл tetrad.mp4";
           overlay.classList.remove('hidden');
+          startButton.style.display = 'none';
         }
       });
 
