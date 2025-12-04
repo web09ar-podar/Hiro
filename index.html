@@ -1,212 +1,130 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>ФОТО: AR - MindAR v1.2.5 (Исправлено)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <title>ТЕТРАДЬ: AR - MindAR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      /* КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ДЛЯ ПОЛНОЭКРАННОГО РЕЖИМА */
-      html, body { 
-        width: 100%;
-        height: 100%;
-      }
-
-      body { 
-        margin: 0; 
-        overflow: hidden; 
-        background: #000; 
-        font-family: Arial, sans-serif; 
-      }
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
       
-      /* Добавляем стили для A-Scene, чтобы убедиться, что она занимает весь экран */
-      a-scene {
-        position: absolute; 
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-      }
-      /* КОНЕЦ КРИТИЧЕСКИХ ИСПРАВЛЕНИЙ */
-
+      /* Стартовый экран (черный фон с кнопкой) */
       #overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95); z-index: 999;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        color: white; text-align: center; transition: opacity 0.5s;
+        background: rgba(0,0,0,0.85); z-index: 999;
+        display: flex; justify-content: center; align-items: center;
+        flex-direction: column; color: white; text-align: center;
       }
-      #overlay.hidden { opacity: 0; pointer-events: none; }
-
-      #status-text { font-size: 20px; margin-bottom: 20px; padding: 0 30px; line-height: 1.4; }
       
       #start-button {
-        padding: 16px 40px; font-size: 20px; background: #e4405f;
-        color: white; border: none; border-radius: 50px; cursor: pointer;
-        font-weight: bold; box-shadow: 0 6px 20px rgba(228,64,95,0.5);
-        transition: transform 0.2s;
+        padding: 15px 30px; font-size: 18px; background: #e4405f;
+        color: white; border: none; border-radius: 30px; cursor: pointer; 
+        margin-top: 20px; font-weight: bold; display: none;
+        box-shadow: 0 4px 15px rgba(228, 64, 95, 0.4);
       }
       #start-button:active { transform: scale(0.95); }
 
-      /* Подсказка снизу */
-      #hint {
-        position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-        color: rgba(255,255,255,0.85); font-size: 18px; z-index: 100;
-        opacity: 0; transition: opacity 0.6s; pointer-events: none; /* Чтобы не мешал кнопкам */
-      }
-      #hint.visible { opacity: 1; }
+      #status-text { font-size: 18px; margin-bottom: 10px; padding: 0 20px; }
+
+      .hidden { display: none !important; }
     </style>
   </head>
-
+  
   <body>
+    
     <div id="overlay">
-      <div id="status-text">Загрузка AR-системы...</div>
-      <button id="start-button" style="display:none;">НАЧАТЬ ПРОСМОТР</button>
+        <div id="status-text">Загрузка AR системы...</div>
+        <button id="start-button">НАЧАТЬ ПРОСМОТР</button>
     </div>
 
-    <div id="hint">Наведите камеру на фотографию</div>
-
-    <a-scene
-      embedded
-      mindar-image="imageTargetSrc: ./tetra.mind;
-                     uiLoading: no; uiScanning: no; uiError: no;
-                     filterMinCF: 0.001; filterBeta: 100;
-                     warmupTolerance: 10; missTolerance: 15;
-                     maxTrack: 1"
-      renderer="antialias: false; colorManagement: true; physicallyCorrectLights: true"
-      vr-mode-ui="enabled: false"
+    <a-scene 
+      mindar-image="imageTargetSrc: ./tetra.mind; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.01; missTolerance: 5" 
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
 
-      <a-assets timeout="20000">
-        <video id="photo-video"
-               src="./tetrad.mp4"
-               preload="auto"
-               loop
-               muted
-               playsinline
-               webkit-playsinline
-               crossorigin="anonymous">
+      <a-assets>
+        <video id="vid" src="./tetrad.mp4" 
+               preload="auto" loop muted playsinline webkit-playsinline crossorigin="anonymous">
         </video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
-        <a-plane id="video-plane"
-                 src="#photo-video"
-                 width="1"
-                 height="1.3333"
-                 position="0 0 0.01"
-                 rotation="0 0 0" material="shader: flat; transparent: true; opacity: 0"
-                 animation__fadein="property: material.opacity; from: 0; to: 1; dur: 450; startEvents: fadein; easing: easeOutCubic"
-                 animation__fadeout="property: material.opacity; from: 1; to: 0; dur: 400; startEvents: fadeout; easing: easeInQuad">
-        </a-plane>
+      <a-entity mindar-image-target="targetIndex: 0" id="target-entity">
+        <a-video 
+          src="#vid" 
+          width="1"
+          height="1.3333" 
+          position="0 0 0.005"
+          rotation="0 0 0"
+          visible="false"
+          material="shader: flat; src: #vid; transparent: true"
+          id="video-plane"
+        ></a-video>
       </a-entity>
 
     </a-scene>
 
     <script>
-      const overlay      = document.getElementById('overlay');
-      const statusText   = document.getElementById('status-text');
-      const startButton  = document.getElementById('start-button');
-      const hint         = document.getElementById('hint');
-      const video        = document.getElementById('photo-video');
-      const videoPlane   = document.getElementById('video-plane');
-      const targetEntity = document.getElementById('target-entity');
-      const sceneEl      = document.querySelector('a-scene');
+      const overlay = document.getElementById('overlay');
+      const startButton = document.getElementById('start-button');
+      const statusText = document.getElementById('status-text');
+      const video = document.getElementById('vid');
+      const videoPlane = document.getElementById('video-plane');
+      const target = document.getElementById('target-entity');
+      const scene = document.querySelector('a-scene');
 
       let lostTimeout = null;
-      let started = false;
-      let arReadyReceived = false;
 
-      // Таймаут на случай, если arReady не приходит
-      setTimeout(() => {
-        if (!arReadyReceived && started) {
-          statusText.innerHTML = "Камера не запустилась.<br>Проверьте разрешения и обновите страницу.";
-          overlay.classList.remove('hidden');
-          startButton.style.display = 'block';
-          startButton.textContent = "ОБНОВИТЬ СТРАНИЦУ";
-          startButton.onclick = () => location.reload();
-        }
-      }, 5500);
-
-      // 1. AR готов
-      sceneEl.addEventListener('arReady', () => {
-        arReadyReceived = true;
-        statusText.textContent = "Готово! Нажмите кнопку, чтобы начать";
-        startButton.style.display = 'block';
-        startButton.textContent = "НАЧАТЬ ПРОСМОТР";
-        startButton.onclick = null; // Сброс обработчика обновления страницы
+      // 1. Система готова
+      scene.addEventListener("arReady", (event) => {
+        statusText.innerText = "Наведите камеру на тетрадь";
+        startButton.style.display = "block"; 
       });
 
-      // 2. Ошибка доступа к камере
-      sceneEl.addEventListener('arError', () => {
-        statusText.innerHTML = "Нет доступа к камере.<br>Разрешите доступ и обновите страницу.";
-        startButton.textContent = "ПОПРОБОВАТЬ СНОВА";
-        startButton.style.display = 'block';
-        startButton.onclick = () => location.reload();
+      // 2. Ошибка
+      scene.addEventListener("arError", (event) => {
+        statusText.innerText = "Ошибка доступа к камере.";
       });
 
-      // 3. Старт по кнопке
+      // 3. Старт
       startButton.addEventListener('click', () => {
-        if (!started) { // Проверяем, чтобы код запускался только один раз
-            overlay.classList.add('hidden');
-            hint.classList.add('visible');
-            started = true;
-
-            // Предзагрузка видео (критически важна для мобильных)
-            video.muted = true;
-            video.play().then(() => {
-              video.pause();
-              video.currentTime = 0;
-              video.muted = false; // звук теперь включится при targetFound
-            }).catch(e => console.warn("Предзагрузка видео:", e));
-        }
+        overlay.classList.add('hidden'); // Убираем только стартовое меню
+        
+        // Инициализация видео
+        video.muted = false; 
+        video.play().then(() => {
+            video.pause();
+            video.currentTime = 0;
+        }).catch(e => console.log("Ошибка воспроизведения:", e));
       });
 
-      // 4. Цель найдена (Слушаем на targetEntity!)
-      targetEntity.addEventListener('targetFound', () => {
-        console.log("Фото найдено");
-        hint.classList.remove('visible');
-
+      // 4. Цель найдена
+      target.addEventListener("targetFound", event => {
+        console.log("Found");
         if (lostTimeout) {
-          clearTimeout(lostTimeout);
-          lostTimeout = null;
+            clearTimeout(lostTimeout);
+            lostTimeout = null;
         }
-
-        videoPlane.emit('fadein');
-        if (video.paused) {
-          video.play().catch(e => console.warn("Ошибка запуска видео:", e));
-        }
+        videoPlane.setAttribute("visible", true);
+        video.play();
       });
 
-      // 5. Цель потеряна (Слушаем на targetEntity!)
-      targetEntity.addEventListener('targetLost', () => {
-        console.log("Фото потеряно – ждём...");
-        hint.classList.add('visible');
-
-        if (lostTimeout) clearTimeout(lostTimeout);
-
+      // 5. Цель потеряна
+      target.addEventListener("targetLost", event => {
+        console.log("Lost (waiting...)");
+        
+        // Ждем 500мс перед тем как поставить паузу (защита от мигания)
         lostTimeout = setTimeout(() => {
-          console.log("Потеря подтверждена");
-          videoPlane.emit('fadeout');
-          setTimeout(() => video.pause(), 450); 
-        }, 700); 
+            console.log("Lost confirmed");
+            video.pause();
+            // videoPlane.setAttribute("visible", false); // Можно раскомментировать, если хотите скрывать видео полностью
+        }, 500); 
       });
-
-      // Ошибка загрузки видео
-      video.addEventListener('error', () => {
-        if (!started) {
-          statusText.innerHTML = "Не удалось загрузить видео.<br>Проверьте файл tetrad.mp4";
-          overlay.classList.remove('hidden');
-          startButton.style.display = 'none';
-        }
-      });
-
-      // Очистка при уходе со страницы
-      window.addEventListener('pagehide', () => video.pause());
     </script>
   </body>
 </html>
